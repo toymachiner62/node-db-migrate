@@ -25,165 +25,95 @@ process.on('uncaughtException', function(err) {
 
 var argv = nomnom
   .script('db-migrate')
-  
   .option('[up|down|reset|create|db] [[dbname/]migrationName|all]', {
     position: 0
   })
-
   .option('env', {
     abbr: 'e',
     full: 'env',
     default: 'dev',
     help: 'The environment to run the migrations under (dev, test, prod).'
   })
-  
   .option('migrations-dir', {
     abbr: 'm',
     full: 'migrations-dir',
     default: process.cwd() + '/migrations',
     help: 'The directory containing your migration files.'
   })
-  
   .option('count', {
     abbr: 'c',
     full: 'count',
     help: 'Max number of migrations to run.'
   })
-  
   .option('dry-run', {
     full: 'dry-run',
     flag: true,
     default: false,
-    help: 'Prints the SQL but doesn\'t run it.'
+    help: 'Prints the SQL but doesn\'t run it.',
+    callback: function() {
+      log.info('dry run');
+    }
   })
-  
   .option('force-exit', {
     full: 'force-exit',
     flag: true,
     default: false,
-    help: 'Forcibly exit the migration process on completion.'
+    help: 'Forcibly exit the migration process on completion.',
+    callback: function() {
+      log.verbose('Forcing exit');
+      process.exit(0);
+    }
   })
-  
   .option('verbose', {
     abbr: 'v',
     full: 'verbose',
+    default: false,
     flag: true,
     help: 'Verbose mode.'
   })
-  
   .option('version', {
     abbr: 'i',
     full: 'version',
     flag: true,
-    help: 'Print version info.'
+    help: 'Print version info.',
+    callback: function() {
+      return module.exports.version;
+    }
   })
-  
   .option('config', {
     full: 'config',
     default: process.cwd() + '/database.json',
     help: 'Location of the database.json file.'
   })
-  
   .option('sql-file', {
     full: 'sql-file',
     flag: true,
     default: false,
     help: 'Automatically create two sql files for up and down statements in /sqls and generate the javascript code that loads them.'
   })
-  
   .option('coffee-file', {
     full: 'coffee-file',
     flag: true,
     default: false,
     help: 'Create a coffeescript migration file'
   })
-  
   .option('migration-table', {
     abbr: 't',
     full: 'migration-table',
     default: 'migrations',
     help: 'Set the name of the migration table, which stores the migration history.'
   })
-  
   .parse();
-  
-  // This needed or is it automatically built into nomnom?
-  /*
-  .option('help', {
-      abbr: 'h',
-      full: 'help',
-      flag: true,
-      help: 'Help'
-    })*/
-  
-  
 
-
-    /*
-    .default({
-          verbose: false,
-          table: 'migrations',
-          'force-exit': false,
-          'sql-file': false,
-          config: process.cwd() + '/database.json',
-          'migrations-dir': process.cwd() + '/migrations' })
-        .usage('Usage: db-migrate [up|down|reset|create|db] [[dbname/]migrationName|all] [options]')
-    */
-    
-    /*
-    .describe('env', 'The environment to run the migrations under (dev, test, prod).')
-        .alias('e', 'env')
-        .string('e')*/
-    /*
-    .describe('migrations-dir', 'The directory containing your migration files.')
-        .alias('m', 'migrations-dir')
-        .string('m')*/
-    /*
-    .describe('count', 'Max number of migrations to run.')
-        .alias('c', 'count')
-        .string('c')*/
-    /*
-    .describe('dry-run', 'Prints the SQL but doesn\'t run it.')
-        .boolean('dry-run')*/
-    /*
-    .describe('force-exit', 'Forcibly exit the migration process on completion.')
-        .boolean('force-exit')*/
-    /*
-    .describe('verbose', 'Verbose mode.')
-        .alias('v', 'verbose')
-        .boolean('v')*/
-    /*
-    .alias('h', 'help')
-        .alias('h', '?')
-        .boolean('h')*/
-    /*
-    .describe('version', 'Print version info.')
-        .alias('i', 'version')
-        .boolean('version')*/
-    /*
-    .describe('config', 'Location of the database.json file.')
-        .string('config')*/
-    /*
-    .describe('sql-file', 'Automatically create two sql files for up and down statements in /sqls and generate the javascript code that loads them.')
-        .boolean('sql-file')*/
-    /*
-    .describe('coffee-file', 'Create a coffeescript migration file')
-        .boolean('coffee-file')*/
-    /*
-    .describe('migration-table', 'Set the name of the migration table, which stores the migration history.')
-        .alias('table', 'migration-table')
-        .alias('t', 'table')
-        .string('t')*/
-    //.argv;
-
-if (argv.version) {
-  console.log(module.exports.version);
-  process.exit(0);
-}
-
-if (argv.help || argv._.length === 0) {
-  optimist.showHelp();
-  process.exit(1);
+// If no args were passed in
+if (argv._.length === 0) {
+  var exec = require('child_process').exec;
+  exec('db-migrate -h', function (error, stdout, stderr) {
+    log.info(stdout);
+    process.exit(1);
+  });
+} else {
+  run();
 }
 
 global.migrationTable = argv.table;
@@ -192,9 +122,6 @@ global.matching = '';
 global.mode;
 global.verbose = argv.verbose;
 global.dryRun = argv['dry-run'];
-if(global.dryRun) {
-  log.info('dry run');
-}
 
 function createMigrationDir(dir, callback) {
   fs.stat(dir, function(err, stat) {
@@ -212,7 +139,7 @@ function loadConfig() {
   } else {
     config.load(argv.config, argv.env);
   }
-  if(verbose) {
+  if(global.verbose) {
     var current = config.getCurrent();
     var s = JSON.parse(JSON.stringify(current.settings));
 
@@ -459,11 +386,4 @@ function run() {
       process.exit(1);
       break;
   }
-}
-
-run();
-
-if (argv['force-exit']) {
-  log.verbose('Forcing exit');
-  process.exit(0);
 }
